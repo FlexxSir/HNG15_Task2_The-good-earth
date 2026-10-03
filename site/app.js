@@ -1,5 +1,5 @@
-// Simple shop preview. Bag and demo orders are saved in this browser for now.
-const products = [
+// Load the real catalog and save orders in Supabase once config.js is connected.
+let products = [
   {id:"whole",name:"Whole chicken",detail:"Approx. 1.5 kg · serves 3–4",price:1250,category:"whole",label:"WHOLE CHICKEN",image:"https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=760&q=82",alt:"Fresh whole chicken"},
   {id:"breast",name:"Chicken breast",detail:"Pack of 4 · approx. 600 g",price:950,category:"cuts",label:"BONELESS",image:"https://images.unsplash.com/photo-1604503468506-a8da13d82791?auto=format&fit=crop&w=760&q=82",alt:"Fresh chicken breast"},
   {id:"drumsticks",name:"Chicken drumsticks",detail:"Pack of 6 · approx. 800 g",price:780,category:"cuts",label:"PACK OF 6",image:"https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=760&q=82",alt:"Chicken drumsticks"},
@@ -9,6 +9,9 @@ const products = [
 ];
 const money = amount => `KSh ${new Intl.NumberFormat("en-KE",{maximumFractionDigits:0}).format(amount)}`;
 const $ = id => document.getElementById(id);
+const config = window.GOOD_EARTH_CONFIG || {};
+const connected = Boolean(window.supabase && config.supabaseUrl && config.supabasePublishableKey && !config.supabaseUrl.includes("YOUR_") && !config.supabasePublishableKey.includes("YOUR_"));
+const database = connected ? window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey) : null;
 let cart = JSON.parse(localStorage.getItem("good-earth-cart")||"{}");
 let activeFilter="all";
 
@@ -40,11 +43,33 @@ document.addEventListener("click",e=>{
 });
 $("cartButton").addEventListener("click",openBag);$("closeCart").addEventListener("click",closeBag);$("drawerBackdrop").addEventListener("click",closeBag);$("shopNow").addEventListener("click",closeBag);
 $("checkoutTrigger").addEventListener("click",openCheckout);$("closeCheckout").addEventListener("click",closeCheckout);$("checkoutModal").addEventListener("click",e=>{if(e.target===$("checkoutModal"))closeCheckout();});
-$("checkoutForm").addEventListener("submit",e=>{
+$("checkoutForm").addEventListener("submit",async e=>{
   e.preventDefault();if(!countCart())return;
-  const form=new FormData(e.currentTarget),order={customer:Object.fromEntries(form.entries()),items:products.filter(p=>cart[p.id]).map(p=>({id:p.id,name:p.name,quantity:cart[p.id],unit_price_ksh:p.price})),total_ksh:totalCart(),order_id:`GE-${Date.now().toString().slice(-7)}`,created_at:new Date().toISOString()};
-  const orders=JSON.parse(localStorage.getItem("good-earth-orders")||"[]");orders.push(order);localStorage.setItem("good-earth-orders",JSON.stringify(orders));
-  $("orderNumber").textContent=`Order reference: ${order.order_id}`;$("checkoutFormView").hidden=true;$("successView").hidden=false;cart={};persistCart();
+  const form=new FormData(e.currentTarget),customer={name:form.get("name").trim(),email:form.get("email").trim(),phone:form.get("phone").trim(),address:form.get("address").trim(),town:form.get("town").trim(),delivery_day:form.get("delivery_day")};
+  const button=$("placeOrder"),original=button.innerHTML;button.disabled=true;button.textContent="Placing your order…";
+  try{
+    let orderId=`GE-${Date.now().toString().slice(-7)}`,emailSent=false;
+    if(database){
+      const {data,error}=await database.functions.invoke("create-order",{body:{customer,items:products.filter(p=>cart[p.id]).map(p=>({product_id:p.id,quantity:cart[p.id]}))}});
+      if(error)throw new Error(error.message||"The order could not be saved.");
+      orderId=data.order_id;emailSent=data.email_sent===true;
+    }else{
+      const order={customer,items:products.filter(p=>cart[p.id]).map(p=>({id:p.id,name:p.name,quantity:cart[p.id],unit_price_ksh:p.price})),total_ksh:totalCart(),order_id:orderId,created_at:new Date().toISOString()};
+      const orders=JSON.parse(localStorage.getItem("good-earth-orders")||"[]");orders.push(order);localStorage.setItem("good-earth-orders",JSON.stringify(orders));
+    }
+    $("orderNumber").textContent=`Order reference: ${orderId}`;
+    $("successMessage").textContent=database?(emailSent?"Your order is saved. A confirmation email is on its way; we’ll call you to confirm delivery.":"Your order is saved in Supabase. We’ll call you to confirm delivery; email confirmations are not set up yet."):"This demo order is saved in this browser only. Connect Supabase to save it online.";
+    $("checkoutFormView").hidden=true;$("successView").hidden=false;cart={};persistCart();
+  }catch(error){toast(error.message||"We couldn’t place that order. Please try again.");}
+  finally{button.disabled=false;button.innerHTML=original;}
 });
 $("doneButton").addEventListener("click",()=>{closeCheckout();setTimeout(()=>{$("checkoutFormView").hidden=false;$("successView").hidden=true;$("checkoutForm").reset();},250);});
-renderProducts();renderCart();
+async function loadProducts(){
+  if(database){
+    const {data,error}=await database.from("products").select("id,name,detail,price_ksh,tag,category,image_url,image_alt").eq("active",true).order("name");
+    if(!error&&data?.length)products=data.map(p=>({id:p.id,name:p.name,detail:p.detail,price:p.price_ksh,label:p.tag,category:p.category,image:p.image_url,alt:p.image_alt}));
+    else if(error)toast("Could not load the live menu. Showing the sample menu.");
+  }
+  renderProducts();renderCart();
+}
+loadProducts();

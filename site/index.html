@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="config.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -58,7 +60,7 @@
         <form id="checkoutForm">
           <label>Your name<input name="name" autocomplete="name" placeholder="e.g. Amina Wanjiku" required /></label>
           <label>Phone number<input name="phone" type="tel" autocomplete="tel" placeholder="e.g. 0712 345 678" required /></label>
-          <label>Email address <span class="optional">optional</span><input name="email" type="email" autocomplete="email" placeholder="For an order receipt" /></label>
+          <label>Email address<input name="email" type="email" autocomplete="email" placeholder="For your order confirmation" required /></label>
           <label>Where should we deliver?<textarea name="address" autocomplete="street-address" rows="2" placeholder="Area, street, building and house number" required></textarea></label>
           <label>Town<input name="town" placeholder="e.g. Nairobi" required /></label>
           <label>When do you need it?<select name="delivery_day" required><option value="">Choose one</option><option>Tomorrow</option><option>Within 2–3 days</option><option>Please call me</option></select></label>
