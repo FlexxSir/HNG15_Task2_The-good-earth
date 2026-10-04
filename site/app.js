@@ -33,6 +33,18 @@ function persistCart(){localStorage.setItem("good-earth-cart",JSON.stringify(car
 function openBag(){$("cartDrawer").classList.add("open");$("drawerBackdrop").classList.add("open");document.body.classList.add("locked");}
 function closeBag(){$("cartDrawer").classList.remove("open");$("drawerBackdrop").classList.remove("open");document.body.classList.remove("locked");}
 function toast(message){const box=$("toast");box.textContent=message;box.classList.add("show");setTimeout(()=>box.classList.remove("show"),2300);}
+let currentUser=null;
+function updateAuthButton(user){currentUser=user;const button=$("authButton");button.textContent=user?"Sign out":"Sign in";button.setAttribute("aria-label",user?"Sign out of your account":"Sign in with Google");button.title=user?"Sign out":"Sign in with Google";}
+if(database){
+  database.auth.getSession().then(({data,error})=>{if(!error)updateAuthButton(data.session?.user??null);});
+  database.auth.onAuthStateChange((_event,session)=>updateAuthButton(session?.user??null));
+}
+$("authButton").addEventListener("click",async()=>{
+  if(!database){toast("Google sign-in needs the Supabase connection.");return;}
+  if(currentUser){const{error}=await database.auth.signOut();if(error)toast("Could not sign out. Please try again.");return;}
+  const{error}=await database.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});
+  if(error)toast(error.message||"Google sign-in could not start. Please try again.");
+});
 function openCheckout(){if(!countCart())return;closeBag();$("checkoutModal").classList.add("open");document.body.classList.add("locked");}
 function closeCheckout(){$("checkoutModal").classList.remove("open");document.body.classList.remove("locked");}
 
