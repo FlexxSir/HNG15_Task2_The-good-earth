@@ -34,7 +34,7 @@ function openBag(){$("cartDrawer").classList.add("open");$("drawerBackdrop").cla
 function closeBag(){$("cartDrawer").classList.remove("open");$("drawerBackdrop").classList.remove("open");document.body.classList.remove("locked");}
 function toast(message){const box=$("toast");box.textContent=message;box.classList.add("show");setTimeout(()=>box.classList.remove("show"),2300);}
 let currentUser=null;
-function updateAuthButton(user){currentUser=user;const button=$("authButton");button.textContent=user?"Sign out":"Sign in";button.setAttribute("aria-label",user?"Sign out of your account":"Sign in with Google");button.title=user?"Sign out":"Sign in with Google";}
+function updateAuthButton(user){currentUser=user;const button=$("authButton");button.textContent=user?"Sign out":"Sign in";button.setAttribute("aria-label",user?"Sign out of your account":"Sign in with Google");button.title=user?"Sign out":"Sign in with Google";if(user){const displayName=user.user_metadata?.full_name||user.user_metadata?.name;const nameField=$("checkoutForm").elements.name;const emailField=$("checkoutForm").elements.email;if(displayName&&!nameField.value)nameField.value=displayName;if(user.email&&!emailField.value)emailField.value=user.email;}}
 if(database){
   database.auth.getSession().then(({data,error})=>{if(!error)updateAuthButton(data.session?.user??null);});
   database.auth.onAuthStateChange((_event,session)=>updateAuthButton(session?.user??null));
