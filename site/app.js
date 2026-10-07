@@ -12,8 +12,14 @@ const $ = id => document.getElementById(id);
 const config = window.GOOD_EARTH_CONFIG || {};
 const connected = Boolean(window.supabase && config.supabaseUrl && config.supabasePublishableKey && !config.supabaseUrl.includes("YOUR_") && !config.supabasePublishableKey.includes("YOUR_"));
 const database = connected ? window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey) : null;
-let cart = JSON.parse(localStorage.getItem("good-earth-cart")||"{}");
+let cart = {};
+try { cart = JSON.parse(localStorage.getItem("good-earth-cart")||"{}"); } catch { cart = {}; }
 let activeFilter="all";
+let cartMode="guest";
+const cartSync = connected && window.GoodEarthCartSync ? window.GoodEarthCartSync.create(database, {
+  onChange:(next,mode)=>{cart=next;cartMode=mode;renderCart();},
+  onError:message=>toast(message)
+}) : null;
 
 function countCart(){return Object.values(cart).reduce((n,q)=>n+q,0);}
 function totalCart(){return products.reduce((n,p)=>n+p.price*(cart[p.id]||0),0);}
@@ -24,20 +30,22 @@ function renderProducts(){
 }
 function renderCart(){
   const count=countCart(),total=totalCart();
+  const syncStatus=$("bagSyncStatus");
+  if(syncStatus)syncStatus.textContent=cartMode==="remote"?"Your bag syncs with your other signed-in devices":cartMode==="syncing"?"Syncing your bag…":"Sign in to sync your bag across devices";
   $("cartCount").textContent=count;$("drawerCount").textContent=`(${count})`;
   $("cartEmpty").hidden=count>0;$("cartItems").hidden=count===0;$("cartFooter").hidden=count===0;
   $("cartItems").innerHTML=products.filter(p=>cart[p.id]).map(p=>`<article class="cart-line"><img src="${p.image}" alt=""><div class="cart-line-info"><h3>${p.name}</h3><p>${p.detail}</p><div class="quantity"><button data-quantity="${p.id}" data-change="-1" aria-label="Remove one">−</button><span>${cart[p.id]}</span><button data-quantity="${p.id}" data-change="1" aria-label="Add one">+</button></div></div><b>${money(p.price*cart[p.id])}</b></article>`).join("");
   $("subtotal").textContent=money(total);$("checkoutTotal").textContent=money(total);$("checkoutSummary").innerHTML=`${count} ${count===1?"item":"items"} in your bag <b>${money(total)}</b>`;
 }
-function persistCart(){localStorage.setItem("good-earth-cart",JSON.stringify(cart));renderCart();}
+function persistCart(){if(cartSync)cartSync.setCart(cart);else localStorage.setItem("good-earth-cart",JSON.stringify(cart));renderCart();}
 function openBag(){$("cartDrawer").classList.add("open");$("drawerBackdrop").classList.add("open");document.body.classList.add("locked");}
 function closeBag(){$("cartDrawer").classList.remove("open");$("drawerBackdrop").classList.remove("open");document.body.classList.remove("locked");}
 function toast(message){const box=$("toast");box.textContent=message;box.classList.add("show");setTimeout(()=>box.classList.remove("show"),2300);}
 let currentUser=null;
 function updateAuthButton(user){currentUser=user;const button=$("authButton");button.textContent=user?"Sign out":"Sign in";button.setAttribute("aria-label",user?"Sign out of your account":"Sign in with Google");button.title=user?"Sign out":"Sign in with Google";if(user){const displayName=user.user_metadata?.full_name||user.user_metadata?.name;const nameField=$("checkoutForm").elements.name;const emailField=$("checkoutForm").elements.email;if(displayName&&!nameField.value)nameField.value=displayName;if(user.email&&!emailField.value)emailField.value=user.email;}}
 if(database){
-  database.auth.getSession().then(({data,error})=>{if(!error)updateAuthButton(data.session?.user??null);});
-  database.auth.onAuthStateChange((_event,session)=>updateAuthButton(session?.user??null));
+  database.auth.getSession().then(({data,error})=>{if(!error){const user=data.session?.user??null;updateAuthButton(user);cartSync?.setUser(user);}});
+  database.auth.onAuthStateChange((_event,session)=>{const user=session?.user??null;setTimeout(()=>{updateAuthButton(user);cartSync?.setUser(user);},0);});
 }
 $("authButton").addEventListener("click",async()=>{
   if(!database){toast("Google sign-in needs the Supabase connection.");return;}
@@ -45,12 +53,12 @@ $("authButton").addEventListener("click",async()=>{
   const{error}=await database.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});
   if(error)toast(error.message||"Google sign-in could not start. Please try again.");
 });
-function openCheckout(){if(!countCart())return;closeBag();$("checkoutModal").classList.add("open");document.body.classList.add("locked");}
+function openCheckout(){if(cartMode==="syncing"){toast("Your bag is syncing. Please try again in a moment.");return;}if(!countCart())return;closeBag();$("checkoutModal").classList.add("open");document.body.classList.add("locked");}
 function closeCheckout(){$("checkoutModal").classList.remove("open");document.body.classList.remove("locked");}
 
 document.addEventListener("click",e=>{
-  const add=e.target.closest("[data-add]");if(add){const id=add.dataset.add;cart[id]=(cart[id]||0)+1;persistCart();toast(`${products.find(p=>p.id===id).name} added to your bag`);return;}
-  const quantity=e.target.closest("[data-quantity]");if(quantity){const id=quantity.dataset.quantity;cart[id]=(cart[id]||0)+Number(quantity.dataset.change);if(cart[id]<1)delete cart[id];persistCart();return;}
+  const add=e.target.closest("[data-add]");if(add){if(cartMode==="syncing"){toast("Your bag is syncing. Please try again in a moment.");return;}const id=add.dataset.add;cart[id]=Math.min(30,(cart[id]||0)+1);persistCart();toast(`${products.find(p=>p.id===id).name} added to your bag`);return;}
+  const quantity=e.target.closest("[data-quantity]");if(quantity){if(cartMode==="syncing"){toast("Your bag is syncing. Please try again in a moment.");return;}const id=quantity.dataset.quantity;cart[id]=Math.min(30,(cart[id]||0)+Number(quantity.dataset.change));if(cart[id]<1)delete cart[id];persistCart();return;}
   const filter=e.target.closest("[data-filter]");if(filter){activeFilter=filter.dataset.filter;document.querySelectorAll(".category").forEach(b=>b.classList.toggle("active",b===filter));renderProducts();}
 });
 $("cartButton").addEventListener("click",openBag);$("closeCart").addEventListener("click",closeBag);$("drawerBackdrop").addEventListener("click",closeBag);$("shopNow").addEventListener("click",closeBag);
