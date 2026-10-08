@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "The Good Earth",
+    "slug": "the-good-earth-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "thegoodearth",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "xyz.infinitesyrup.thegoodearth"
+    },
+    "ios": {
+      "bundleIdentifier": "xyz.infinitesyrup.thegoodearth"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "63784ee8-2b79-4f56-aac2-2aa96e7737c5"
+      }
+    },
+    "owner": "infinitesyrup"
+  }
+}
