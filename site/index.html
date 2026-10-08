@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="styles.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="config.js"></script>
+  <script defer src="cart-sync.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -46,7 +47,7 @@
 
   <div class="overlay" id="drawerBackdrop"></div>
   <aside class="bag-drawer" id="cartDrawer" aria-label="Your shopping bag" aria-modal="true" role="dialog">
-    <div class="drawer-header"><div><p class="eyebrow">THE GOOD STUFF</p><h2>Your bag <span id="drawerCount">(0)</span></h2></div><button id="closeCart" class="close-button" aria-label="Close bag">×</button></div>
+    <div class="drawer-header"><div><p class="eyebrow">THE GOOD STUFF</p><h2>Your bag <span id="drawerCount">(0)</span></h2><p class="bag-sync-status" id="bagSyncStatus">Sign in to sync your bag across devices</p></div><button id="closeCart" class="close-button" aria-label="Close bag">×</button></div>
     <div class="cart-items" id="cartItems"></div>
     <div class="cart-empty" id="cartEmpty"><span class="empty-bag">＋</span><h3>Your bag is empty</h3><p>Add some fresh chicken to get started.</p><button class="primary-button" id="shopNow">Browse chicken</button></div>
     <div class="cart-footer" id="cartFooter"><div class="subtotal"><span>Subtotal</span><b id="subtotal">KSh 0</b></div><p class="delivery-note">Delivery fee is confirmed when we call you.</p><button class="primary-button" id="checkoutTrigger">Continue to checkout <span>→</span></button><p class="payment-note">Pay on delivery · We’ll confirm your order by phone</p></div>
