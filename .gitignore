@@ -1,0 +1,9 @@
+node_modules/
+.expo/
+.eas/
+.env
+.env.*
+!.env.example
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
